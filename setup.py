@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='zabbops',
-      version='1.0',
+      version='1.1',
       description='Zabbix/AWS orchestration',
       url='http://github.com/cavaliercoder/zabbops',
       author='Ryan Armstrong',
