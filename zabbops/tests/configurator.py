@@ -57,7 +57,7 @@ class ConfiguratorTests(unittest.TestCase):
         })
         host = response['result'][0]
         self.assertEqual(host['host'], INSTANCE['InstanceId'])
-        self.assertEqual(host['name'], INSTANCE['Tags'][0]['Value'])
+        self.assertEqual(host['name'], '{} ({})'.format(INSTANCE['Tags'][0]['Value'], INSTANCE['InstanceId']))
         self.assertEqual(host['status'], '1')
         self.assertEqual(host['description'], INSTANCE['Tags'][1]['Value'])
 

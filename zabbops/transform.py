@@ -64,7 +64,7 @@ def instance_to_host(instance, enabled=False, groups=None, templates=None, macro
     for tag in instance['Tags']:
         key = tag['Key'].lower()
         if key == 'name':
-            host['name'] = tag['Value']
+            host['name'] = '{} ({})'.format(tag['Value'], instance['InstanceId'])
             host['inventory']['name'] = tag['Value']
         elif key == 'description':
             host['description'] = tag['Value']
