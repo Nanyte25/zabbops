@@ -25,10 +25,22 @@ def tag_to_macro(tag, prefix='$EC2_TAG_'):
         'value': tag['Value']
     }
 
-def instance_to_host(instance, enabled=False, groups=None, templates=None, macros=None):
+def state_to_status(state):
+    """Converts an EC2 Instance state to a Zabbix Host status."""
+
+    # see: http://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceState.html
+    if state in ('shutting-down', 'terminated', 'stopping', 'stopped'):
+        return 1
+
+    if state in ('running', 'pending'):
+        return 0
+
+    raise ValueError('Unrecognised EC2 state: {}'.format(state))
+
+def instance_to_host(instance, groups=None, templates=None, macros=None):
     """Converts the given EC2 Instance to a Zabbix Host"""
 
-    status = '0' if enabled else '1'
+    status = state_to_status(instance['State']['Name'])
     groups = groups or []
     templates = templates or []
     macros = macros or []
@@ -72,3 +84,54 @@ def instance_to_host(instance, enabled=False, groups=None, templates=None, macro
         host['macros'].append(tag_to_macro(tag))
 
     return host
+
+def host_diff(current, desired):
+    """
+    host_diff returns the difference between two Zabbix hosts in a format
+    ready for posting to the host.update Zabbix API endpoint.
+    """
+    
+    from copy import deepcopy
+
+    is_diff = False
+    diff = {
+        'hostid': current['hostid'],
+        'inventory': {},
+    }
+
+    # diff top-level fields
+    # NOTE: we make an exception here for inventory_mode, as this field is not
+    # returned by the Zabbix API and will therefore this always return a diff if
+    # the field is defined in the desired state.
+    top_fields = ('name', 'description', 'status')
+    for field in top_fields:
+        if str(current[field]) != str(desired[field]):
+            is_diff = True
+            diff[field] = desired[field]
+
+    # diff inventory items
+    for item in desired['inventory']:
+        if (item not in current['inventory'] or
+                current['inventory'][item] != desired['inventory'][item]):
+            diff['inventory'][item] = desired['inventory'][item]
+            is_diff = True
+
+    # diff groups
+    # NOTE: groups cannot be updated in patches. The diff must contain all
+    # existing groups to prevent them being unlinked. Desired groups must be
+    # provided in form {'groupid': <groupid>}
+    current_groups = sorted(current['groups'], key=lambda x: x['groupid'])
+    desired_groups = sorted(desired['groups'], key=lambda x: x['groupid'])
+    if len(current_groups) != len(desired_groups):
+        is_diff = True
+        diff['groups'] = deepcopy(desired['groups'])
+    else:
+        for i in range(0, len(desired_groups)):
+            if current_groups[i]['groupid'] != desired_groups[i]['groupid']:
+                is_diff = True
+                diff['groups'] = deepcopy(desired['groups'])
+                break
+
+    if is_diff:
+        return diff
+    return None
