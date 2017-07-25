@@ -1,7 +1,3 @@
-import logging
-from os import environ
-from datetime import datetime
-from pyzabbix import ZabbixAPI
 from .transform import instance_to_host, host_diff
 
 RFC_2822 = '%a, %d %b %Y %T %z'
@@ -13,6 +9,10 @@ class Configurator(object):
     """
 
     def __init__(self, api=None):
+        from logging import getLogger
+        from os import environ
+        from pyzabbix import ZabbixAPI
+
         self._api = api
 
         # memoizing cache (no lifetime management)
@@ -23,7 +23,7 @@ class Configurator(object):
             'templateids': {}
         }
 
-        self.logger = logging.getLogger('zabbops')
+        self.logger = getLogger('zabbops')
 
         if not self._api:
             # connect using environment variables
@@ -170,7 +170,7 @@ class Configurator(object):
         given AWS EC2 Instance.
         """
 
-        # lookup existing Host - it would make more sense to simple create the
+        # lookup existing Host - it would make more sense to simply create the
         # new host and respond to an 'already exists' error by subsequently
         # updating the Host if required. Unfortunately there is no way to
         # deterministically tell which error Zabbix returned. Would could search
@@ -254,14 +254,22 @@ class Configurator(object):
                 hostid)
         }
 
-    def archive_host(self, instance, group='Archive', reason=None):
+    def archive_host(self, instance, group='Archive', reason=None, ignore_missing=False):
         """
         Disable the given AWS EC2 Instance in Zabbix and move it to the Archive
         Host Group.
         """
 
+        from datetime import datetime
+
         # invalidate cache
-        hostid = self.get_hostid(instance)
+        hostid = self.get_hostid(instance, raise_missing=not ignore_missing)
+        if hostid is None and ignore_missing:
+            return {
+                'hostid': None,
+                'message': 'Zabbix Host {} does not exist - may have been archived already'.format(
+                    instance['InstanceId'])
+            }
         if hostid in self._cache['hosts']:
             del self._cache['hosts'][hostid]
 

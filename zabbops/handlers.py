@@ -2,9 +2,6 @@
 Handlers contains useful Lambda handlers for Amazon AWS events.
 """
 
-from base64 import b64decode
-from json import loads
-
 def KinesisStreamHandler(lambda_handler):
     """
     KinesisStreamHandler wraps any Lambda Function handler that expects a
@@ -17,6 +14,9 @@ def KinesisStreamHandler(lambda_handler):
         Wrapper function to split a Kinesis Stream event batch into multiple
         discrete events for lambda.
         """
+
+        from base64 import b64decode
+        from json import loads
 
         for record in event['Records']:
             data = b64decode(record['kinesis']['data'])

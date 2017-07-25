@@ -3,8 +3,6 @@ Transform contains primitives for transforming AWS API objects into Zabbix API
 objects.
 """
 
-from re import sub
-
 def get_tag_by_key(instance, key):
     """Returns the value of the given EC2 Instance Tag or None"""
 
@@ -16,6 +14,8 @@ def get_tag_by_key(instance, key):
 
 def tag_to_macro(tag, prefix='$EC2_TAG_'):
     """Converts the given EC2 Tag to a Zabbix User Macro"""
+
+    from re import sub
 
     macro = tag['Key'].upper()
     macro = sub(r'[^A-Z0-9]+', '_', macro)
@@ -105,9 +105,11 @@ def host_diff(current, desired):
     # the field is defined in the desired state.
     top_fields = ('name', 'description', 'status')
     for field in top_fields:
-        if str(current[field]) != str(desired[field]):
+        val_a = str(current[field]) if field in current else ''
+        val_b = str(desired[field]) if field in desired else ''
+        if val_a != val_b:
             is_diff = True
-            diff[field] = desired[field]
+            diff[field] = val_b
 
     # diff inventory items
     for item in desired['inventory']:
